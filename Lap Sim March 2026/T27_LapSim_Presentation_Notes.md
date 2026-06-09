@@ -32,7 +32,7 @@ Baseline verification result for `CL=0.080`, `CD=0.020`, `CoP=0.450`:
 
 Important feasibility correction:
 
-The unconstrained sweep can select aero values that are not physically realistic. For example, `CL=0.160` and `CD=0.010` predicts about 422 lbf of downforce at 35 mph with L/D near 16. Based on current CUFSAE expectations, a realistic 15 m/s / 35 mph window is about 90 to 135 lbf downforce, which is approximately 400 to 600 N. Drag should be slightly below half of downforce, about 40 to 65 lbf, and last year's efficiency was about L/D = 2.2. The runner now supports feasibility filtering so the workbook reports both the unconstrained best result and the best feasible result. A reasonable nominal starting target is about `CL=0.045`, `CD=0.020`, and `CoP=0.475`, which gives about 119 lbf downforce, 53 lbf drag, and L/D about 2.25 at 35 mph.
+The unconstrained sweep can select aero values that are not physically realistic. For example, `CL=0.160` and `CD=0.010` predicts about 422 lbf of downforce at 35 mph with L/D near 16. Based on current CUFSAE expectations, a realistic 15 m/s / 35 mph window is about 90 to 135 lbf downforce, which is approximately 400 to 600 N. Drag should be slightly below half of downforce, about 40 to 65 lbf, and last year's efficiency was about L/D = 2.2. The runner now enforces those feasibility filters directly: downforce 90-135 lbf, drag 40-65 lbf, and L/D 2.0-2.4 at 35 mph. The workbook reports both the unconstrained best result and the best feasible result. A reasonable nominal starting target is about `CL=0.045`, `CD=0.020`, and `CoP=0.475`, which gives about 119 lbf downforce, 53 lbf drag, and L/D about 2.25 at 35 mph.
 
 ## What Changed
 

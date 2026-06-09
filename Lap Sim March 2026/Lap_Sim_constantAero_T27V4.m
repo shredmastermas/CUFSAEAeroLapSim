@@ -205,7 +205,7 @@ disp('Loading Constant Aero Targets')
 % CoP_target is front aero distribution as a decimal:
 %       0.45 = 45% of downforce on front axle, 55% rear
 % -------------------------------------------------------------------------
-if ~exist('CL_target','var') || isempty(CL_target); CL_target = 0.080; end   % lbf/(ft/s)^2, increase for more downforce
+if ~exist('CL_target','var') || isempty(CL_target); CL_target = 0.040; end   % lbf/(ft/s)^2, increase for more downforce
 if ~exist('CD_target','var') || isempty(CD_target); CD_target = 0.020; end   % lbf/(ft/s)^2, increase for more drag
 if ~exist('CoP_target','var') || isempty(CoP_target); CoP_target = 0.450; end % front aero distribution, 0 to 1
 
