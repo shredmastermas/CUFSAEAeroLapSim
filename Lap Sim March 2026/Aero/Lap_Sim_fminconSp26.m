@@ -1,5 +1,25 @@
 % function [Total_Points,Accel_Score,Skidpad_Score,Autocross_Score,Endurance_Score,skidpad_time,AY_max,AX_max,AX_min,distance_ax,acceleration_ax,lateral_accel_ax,velocity_ax,weights_ax,vehicle_path_AX,time_elapsed_ax,brakeResults,accResults,latResults] = Lap_Sim_fminconSp26(pg)
-clear
+if ~exist('T27_NO_CLEAR','var') || ~T27_NO_CLEAR
+    clearvars -except T27_NO_CLEAR T27_betaLimitDeg T27_betaLimitToleranceDeg T27_REJECT_SIDESLIP_LIMITED T27_PLOT_RESULTS T27_AERO_MAP_FILE T27_TEST_RESULTS_FOLDER
+end
+
+thisScriptFolder = fileparts(mfilename('fullpath'));
+if isempty(thisScriptFolder); thisScriptFolder = pwd; end
+lapSimRoot = fileparts(thisScriptFolder);
+if ~isfolder(fullfile(lapSimRoot, 'Aero')); lapSimRoot = thisScriptFolder; end
+addpath(genpath(lapSimRoot));
+
+if ~exist('T27_betaLimitDeg','var') || isempty(T27_betaLimitDeg); T27_betaLimitDeg = 10; end
+if ~exist('T27_betaLimitToleranceDeg','var') || isempty(T27_betaLimitToleranceDeg); T27_betaLimitToleranceDeg = 0.25; end
+if ~exist('T27_REJECT_SIDESLIP_LIMITED','var') || isempty(T27_REJECT_SIDESLIP_LIMITED); T27_REJECT_SIDESLIP_LIMITED = true; end
+if ~exist('T27_PLOT_RESULTS','var') || isempty(T27_PLOT_RESULTS); T27_PLOT_RESULTS = true; end
+if ~exist('T27_TEST_RESULTS_FOLDER','var') || isempty(T27_TEST_RESULTS_FOLDER)
+    T27_TEST_RESULTS_FOLDER = fullfile(lapSimRoot, 'Test Results');
+end
+if ~isfolder(T27_TEST_RESULTS_FOLDER); mkdir(T27_TEST_RESULTS_FOLDER); end
+if ~exist('T27_AERO_MAP_FILE','var') || isempty(T27_AERO_MAP_FILE)
+    T27_AERO_MAP_FILE = "Z:\FSAE 2026\Engineering\01 - Aerodynamics Division\08 - CFD Files\08-04 CFD Results\Aero Map\Aero Map Data.xlsx";
+end
 % The purpose of this code is to evaluate the points-scoring capacity of a
 % virtual vehicle around the 2019 FSAE Michigan Dynamic Event Tracks
 
@@ -175,8 +195,12 @@ kRR = kr;
 %% Section 5: Input Aero Parameters
 disp('Loading Aero Model')
 
-% Specify filepath for Aero Map Data
-aeroMap = "Z:\FSAE 2026\Engineering\01 - Aerodynamics Division\08 - CFD Files\08-04 CFD Results\Aero Map\Aero Map Data.xlsx";
+% Specify filepath for Aero Map Data. Override this before running on Mac
+% or another Windows machine if the team aero map lives somewhere else.
+aeroMap = T27_AERO_MAP_FILE;
+if ~isfile(aeroMap)
+    error('Aero map file not found: %s. Set T27_AERO_MAP_FILE before running Lap_Sim_fminconSp26.', aeroMap);
+end
 
 % Load data from excel file
 %cl = readmatrix('C:\Users\ptgas\OneDrive - Clemson University\Documents\FSAE-Personal\Lap Sim\Lap Sim\Aero Map Data.xlsx','Range','V2:V28');
@@ -346,6 +370,12 @@ grip = csaps(velocity,A_xr);
 %% Lateral Acceleration
 
 clear Rs steering speed lateralg USangle betas afs ars Car Car0 Cls Cds CoPs
+nRadii = numel(radii);
+betaLimitHits = false(1,nRadii);
+sideslipRejectedSteps = false(1,nRadii);
+solverExitFlags = nan(1,nRadii);
+FyResidualNorms = nan(1,nRadii);
+MzResidualNorms = nan(1,nRadii);
 
 % Next we explore the cornering envelope. First we define AYP, which is the
 % starting guess for lateral acceleration capacity at a given speed
@@ -354,6 +384,8 @@ tol = 1e-2;
 step = 0.1;
 res= [];
 nCa = 0.1; % On-center Cornering Stiffness Constraint Coefficient [-]
+betaLimitRad = deg2rad(T27_betaLimitDeg);
+betaLimitTolRad = deg2rad(T27_betaLimitToleranceDeg);
 options = optimoptions('fmincon', 'Display', 'none');
 disp('     Cornering Envelope')
 
@@ -376,8 +408,8 @@ for turn = 1:1:length(radii)
         % lower and upper bounds on inputs
         % [delta, belta]
         % set these to something reasonable
-        lb = [deg2rad(-20), deg2rad(-10)];
-        ub = [deg2rad(25), deg2rad(10)];
+        lb = [deg2rad(-20), -betaLimitRad];
+        ub = [deg2rad(25), betaLimitRad];
 
         % This version of lat_solve utilizes fmincon to find the *best* solution to
         % the system by treating the system as a constrained nonlinear
@@ -400,8 +432,13 @@ for turn = 1:1:length(radii)
         fval = lat_solve(x, V, a, b, l, WDF, R, IA_staticf, IA_gainf, IA_staticr, IA_gainr, WF, WR, twf, twr, cg, W, LLTD, rg_f, rg_r, casterf, casterr, deltar, sf_y, A, grip, Cd, T_lock, KPIf, KPIr,fnCl,fnCoP,fnCd,RHfi,RHri,kRF,kRR,dxf,dxr);
         res(1) = fval(1)/W;
         res(2) = fval(2)/((W*WDF)*(l*(1-WDF)));
-        % if lat_solve fails, exit loop
-        if exitflag < 1 || any(abs(res) > tol)
+        betaAtLimit = abs(x(2)) >= (betaLimitRad - betaLimitTolRad);
+        % If the optimizer is riding the beta bound, treat that speed step
+        % as failed so the aero-map envelope cannot exploit the constraint.
+        if exitflag < 1 || any(abs(res) > tol) || (T27_REJECT_SIDESLIP_LIMITED && betaAtLimit)
+            if betaAtLimit
+                sideslipRejectedSteps(turn) = true;
+            end
             cond = -1;
             % Retry with a neutral initial guess instead of the warm-start
             % x_retry = [atan(l/R), 0];
@@ -430,6 +467,7 @@ for turn = 1:1:length(radii)
             obj = @(x) lat_objective(x, V, a, b, l, WDF, R, IA_staticf, IA_gainf, IA_staticr, IA_gainr, WF, WR, twf, twr, cg, W, LLTD, rg_f, rg_r, casterf, casterr, deltar, sf_y, A, grip, Cd, T_lock, KPIf, KPIr,fnCl,fnCoP,fnCd,RHfi,RHri,kRF,kRR,dxf,dxr,x_prev);
             [x, Jval, exitflag] = fmincon(obj, x_prev, [], [], [], [], lb, ub, nonlcon, options);
             fval = lat_solve(x, V, a, b, l, WDF, R, IA_staticf, IA_gainf, IA_staticr, IA_gainr, WF, WR, twf, twr, cg, W, LLTD, rg_f, rg_r, casterf, casterr, deltar, sf_y, A, grip, Cd, T_lock, KPIf, KPIr,fnCl,fnCoP,fnCd,RHfi,RHri,kRF,kRR,dxf,dxr);
+            finalRes = [fval(1)/W, fval(2)/((W*WDF)*(l*(1-WDF)))];
             % fprintf('\nFy Residual: %0.6f', res(1))
             % fprintf('\nMz Residual: %0.6f', res(2))
 
@@ -547,7 +585,20 @@ for turn = 1:1:length(radii)
             CoPs(turn) = CoP;
             Cls(turn) = Cl;
             Cds(turn) = Cd;
-            latResults = table(Rs',steering',speed',lateralg',USangle',betas',afs',ars',Car',Car0',CoPs',Cls',Cds','VariableNames',["Radius","steering","speed","latG","US Angle","Beta","af","ar","C_ar","C_ar0","CoPs","Cls","Cds"]);
+            betaLimitHits(turn) = abs(beta) >= (betaLimitRad - betaLimitTolRad);
+            solverExitFlags(turn) = exitflag;
+            FyResidualNorms(turn) = finalRes(1);
+            MzResidualNorms(turn) = finalRes(2);
+            nLatRows = numel(Rs);
+            betaAbsDeg = abs(betas(1:nLatRows));
+            betaLimitDegCol = repmat(T27_betaLimitDeg, 1, nLatRows);
+            betaLimitMarginDeg = betaLimitDegCol - betaAbsDeg;
+            latResults = table(Rs',steering',speed',lateralg',USangle',betas',afs',ars',Car',Car0',CoPs',Cls',Cds', ...
+                betaAbsDeg', betaLimitDegCol', betaLimitMarginDeg', betaLimitHits(1:nLatRows)', sideslipRejectedSteps(1:nLatRows)', ...
+                solverExitFlags(1:nLatRows)', FyResidualNorms(1:nLatRows)', MzResidualNorms(1:nLatRows)', ...
+                'VariableNames',["Radius","steering","speed","latG","US Angle","Beta","af","ar","C_ar","C_ar0","CoPs","Cls","Cds", ...
+                "BetaAbs_deg","BetaLimit_deg","BetaLimitMargin_deg","BetaLimitHit","SideslipRejectedStep", ...
+                "SolverExitFlag","FyResidualNorm","MzResidualNorm"]);
         end
     end
     % initial guess for next turning radius
@@ -560,12 +611,45 @@ toc
 % xlabel('Corner Radii [ft]')
 % ylabel('Lateral Acceleration [G]')
 % grid on
-global latResults_out
+global latResults_out aeroMapSideslipSummary
 latResults_out = latResults;
-figure;
-plot(Rs,steering)
-xlabel('Radii [ft]')
-ylabel('Steering angle [deg]')
+validBetaMask = ~isnan(latResults.Beta);
+if any(validBetaMask)
+    max_sideslip_deg = max(abs(latResults.Beta(validBetaMask)));
+    sideslip_limit_hit = any(latResults.BetaLimitHit(validBetaMask));
+    num_sideslip_limited_points = sum(latResults.BetaLimitHit(validBetaMask));
+    percent_sideslip_limited = 100 * num_sideslip_limited_points / sum(validBetaMask);
+    num_sideslip_rejected_steps = sum(latResults.SideslipRejectedStep(validBetaMask));
+    firstSideslipIdx = find(latResults.BetaLimitHit & validBetaMask, 1, 'first');
+    if isempty(firstSideslipIdx)
+        first_sideslip_limit_radius_ft = NaN;
+        first_sideslip_limit_speed_mph = NaN;
+    else
+        first_sideslip_limit_radius_ft = latResults.Radius(firstSideslipIdx);
+        first_sideslip_limit_speed_mph = latResults.speed(firstSideslipIdx) * 3600 / 5280;
+    end
+else
+    max_sideslip_deg = NaN;
+    sideslip_limit_hit = false;
+    num_sideslip_limited_points = 0;
+    percent_sideslip_limited = 0;
+    num_sideslip_rejected_steps = 0;
+    first_sideslip_limit_radius_ft = NaN;
+    first_sideslip_limit_speed_mph = NaN;
+end
+aeroMapSideslipSummary = table(T27_betaLimitDeg, max_sideslip_deg, sideslip_limit_hit, ...
+    num_sideslip_limited_points, percent_sideslip_limited, num_sideslip_rejected_steps, ...
+    first_sideslip_limit_radius_ft, first_sideslip_limit_speed_mph, ...
+    'VariableNames', ["BetaLimit_deg","max_sideslip_deg","sideslip_limit_hit", ...
+    "num_sideslip_limited_points","percent_sideslip_limited","num_sideslip_rejected_steps", ...
+    "first_sideslip_limit_radius_ft","first_sideslip_limit_speed_mph"]);
+disp(aeroMapSideslipSummary)
+if T27_PLOT_RESULTS
+    figure;
+    plot(Rs,steering)
+    xlabel('Radii [ft]')
+    ylabel('Steering angle [deg]')
+end
 %% Braking Performance
 clear Cls Cds CoPs DFs pitches VEL A_Xt RH
 
@@ -678,11 +762,12 @@ radii = velocity_y.^2./lateralg/32.2;
 % cornering = csaps(radii,velocity_y);
 cornering = fnxtr(csaps(radii, velocity_y, 0.99999), 2);
 
-save("pickle.mat", "cornering", "lateral", "deccel")
+T27_pickleFile = fullfile(lapSimRoot, 'Sim Data', 'pickle.mat');
+save(T27_pickleFile, "cornering", "lateral", "deccel")
 %% Section 7: Load Endurance Track Coordinates
-load("pickle.mat")
+load(T27_pickleFile)
 disp('Loading Endurance Track Coordinates')
-[data text] = xlsread('Endurance_Coordinates_1.xlsx','Scaled');
+[data, text] = xlsread(fullfile(lapSimRoot, 'Sim Data', 'Endurance_Coordinates_1.xlsx'),'Scaled');
 
 % the coordinates are now contained within 'data'. This is a 5 column
 % matrix that contains a set of defined 'gates' that the car must mavigate
@@ -724,7 +809,7 @@ for i = 1:1:length(outside)
 end
 %% Seciton 8: Load Endurance Racing Line
 disp('Loading Endurance Racing Line')
-xx = load('endurance_racing_line.mat');
+xx = load(fullfile(lapSimRoot, 'Sim Data', 'endurance_racing_line.mat'));
 xx = xx.endurance_racing_line;
 %% Section 9: Optimize Endurance Racing Line
 % The pre-loaded racing line should work for most applications; however,
@@ -780,7 +865,7 @@ disp('Plotting Vehicle Trajectory')
 [laptime time_elapsed velocity acceleration lateral_accel gear_counter path_length weights distance] = lap_information(xx);
 %% Section 12: Load Autocross Track Coordinates
 disp('Loading Autocross Track Coordinates')
-[data text] = xlsread('Autocross_Coordinates_2.xlsx','Scaled');
+[data, text] = xlsread(fullfile(lapSimRoot, 'Sim Data', 'Autocross_Coordinates_2.xlsx'),'Scaled');
 outside = data(:,2:3);
 inside = data(:,4:5);
 t = [1:length(outside)];
@@ -814,7 +899,7 @@ end
 %save('path_boundaries.mat','path_boundaries');
 %% Section 13: Load Autocross Racing Line
 disp('Loading Autocross Racing Line')
-xx = load('autocross_racing_line.mat');
+xx = load(fullfile(lapSimRoot, 'Sim Data', 'autocross_racing_line.mat'));
 xx = xx.autocross_racing_line;
 %% Section 14: Optimize Autocross Racing Line
 % Same applies here, optimizing the line is optional but if you want,
@@ -983,7 +1068,7 @@ Accel_Score = 95.5*((Tmax_accel/accel_time)-1)/((Tmax_accel/Tmin_accel)-1) + 4.5
 Total_Points = Accel_Score+Skidpad_Score+Autocross_Score+Endurance_Score;
 
 results = [time_elapsed' velocity'];
-xlswrite('logged_data.xlsx',results,'sim_data')
+xlswrite(fullfile(T27_TEST_RESULTS_FOLDER, 'logged_data.xlsx'), results, 'sim_data')
 %% Section 18: Generate Load Cases
 disp('Generating Load Cases')
 % find all three worst case acceleration cases:
@@ -1010,6 +1095,7 @@ rearF(1,:) = [W*AX_max/2 -(WR/2 +WR*AX_min*cg/l/2)*AX_min 0];
 %% Section 19: Plot Results
  disp('Plotting Results')
 % % This is just to make some pretty pictures, feel free to comment this out
+if T27_PLOT_RESULTS
  figure
  plot(distance,velocity,'k')
  title('Endurance Simulation Velocity Trace')
@@ -1032,6 +1118,7 @@ rearF(1,:) = [W*AX_max/2 -(WR/2 +WR*AX_min*cg/l/2)*AX_min 0];
   xlabel('Distance Travelled (d) [ft]')
  ylabel('Acceleration [g]')
  legend('Longitudinal','Lateral')
+end
  disp('Analysis Complete')
  disp(Total_Points)
  toc

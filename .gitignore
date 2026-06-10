@@ -6,8 +6,13 @@
 # Local MATLAB smoke-test outputs
 Lap Sim March 2026/CODEX_T27_*.mat
 Lap Sim March 2026/CODEX_T27_*.xlsx
+Lap Sim March 2026/Test Results/CODEX_T27_*.mat
+Lap Sim March 2026/Test Results/CODEX_T27_*.xlsx
 
 # Generated validation/export files from one-off local runs
 Lap Sim March 2026/T27_validation_*.csv
 Lap Sim March 2026/aero_target_results.csv
 Lap Sim March 2026/logged_data.csv
+Lap Sim March 2026/Test Results/T27_validation_*.csv
+Lap Sim March 2026/Test Results/aero_target_results.csv
+Lap Sim March 2026/Test Results/logged_data.csv

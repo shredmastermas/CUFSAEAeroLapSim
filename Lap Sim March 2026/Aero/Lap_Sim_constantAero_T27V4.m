@@ -1,6 +1,6 @@
 % function [Total_Points,Accel_Score,Skidpad_Score,Autocross_Score,Endurance_Score,skidpad_time,AY_max,AX_max,AX_min,distance_ax,acceleration_ax,lateral_accel_ax,velocity_ax,weights_ax,vehicle_path_AX,time_elapsed_ax,brakeResults,accResults,latResults] = Lap_Sim_fminconSp26(pg)
 if ~exist('T27_NO_CLEAR','var') || ~T27_NO_CLEAR
-    clear
+    clearvars -except T27_* CL_target CD_target CoP_target aeroTag sweepRunIndex sweepTotalRuns
 end
 % The purpose of this code is to evaluate the points-scoring capacity of a
 % virtual vehicle around the 2019 FSAE Michigan Dynamic Event Tracks
@@ -16,11 +16,27 @@ global r_max accel grip deccel lateral cornering gear shift_points...
 % keep the file usable as a normal one-off MATLAB script.
 if ~exist('T27_SWEEP_ACTIVE','var'); T27_SWEEP_ACTIVE = false; end
 if ~exist('T27_PARALLEL_ACTIVE','var'); T27_PARALLEL_ACTIVE = false; end
+if ~exist('T27_resolutionPreset','var') || isempty(T27_resolutionPreset); T27_resolutionPreset = "Custom"; end
+if ~exist('T27_SHOW_RESOLUTION_PICKER','var') || isempty(T27_SHOW_RESOLUTION_PICKER); T27_SHOW_RESOLUTION_PICKER = false; end
 if ~exist('T27_FAST_MODE','var'); T27_FAST_MODE = false; end
 if ~exist('T27_PLOT_RESULTS','var'); T27_PLOT_RESULTS = true; end
 if ~exist('T27_velocityStep','var') || isempty(T27_velocityStep); T27_velocityStep = 1; end
 if ~exist('T27_radiiStep','var') || isempty(T27_radiiStep); T27_radiiStep = 5; end
 if ~exist('T27_lateralStep','var') || isempty(T27_lateralStep); T27_lateralStep = 0.10; end
+
+thisScriptFolder = fileparts(mfilename('fullpath'));
+if isempty(thisScriptFolder); thisScriptFolder = pwd; end
+lapSimRoot = fileparts(thisScriptFolder);
+if ~isfolder(fullfile(lapSimRoot, 'Aero')); lapSimRoot = thisScriptFolder; end
+addpath(genpath(lapSimRoot));
+if ~exist('T27_TEST_RESULTS_FOLDER','var') || isempty(T27_TEST_RESULTS_FOLDER)
+    T27_TEST_RESULTS_FOLDER = fullfile(lapSimRoot, 'Test Results');
+end
+if ~isfolder(T27_TEST_RESULTS_FOLDER); mkdir(T27_TEST_RESULTS_FOLDER); end
+
+[T27_FAST_MODE, T27_velocityStep, T27_radiiStep, T27_lateralStep, T27_resolutionPreset] = ...
+    resolveT27ResolutionPreset(T27_resolutionPreset, T27_FAST_MODE, T27_velocityStep, ...
+    T27_radiiStep, T27_lateralStep, T27_SHOW_RESOLUTION_PICKER);
 if ~exist('T27_WRITE_OUTPUTS','var'); T27_WRITE_OUTPUTS = ~T27_PARALLEL_ACTIVE; end
 if ~exist('T27_EXPORT_VALIDATION','var'); T27_EXPORT_VALIDATION = T27_WRITE_OUTPUTS; end
 %% Section 1: Input Tire Model
@@ -730,7 +746,7 @@ cornering = fnxtr(csaps(radii, corneringVelocity_fit, 0.99999), 2);
 
 %% Section 7: Load Endurance Track Coordinates
 disp('Loading Endurance Track Coordinates')
-data = readScaledTrackCoordinates('Endurance_Coordinates_1.xlsx');
+data = readScaledTrackCoordinates(fullfile(lapSimRoot, 'Sim Data', 'Endurance_Coordinates_1.xlsx'));
 
 % the coordinates are now contained within 'data'. This is a 5 column
 % matrix that contains a set of defined 'gates' that the car must mavigate
@@ -773,7 +789,7 @@ for i = 1:1:length(outside)
 end
 %% Seciton 8: Load Endurance Racing Line
 disp('Loading Endurance Racing Line')
-xx = load('endurance_racing_line.mat');
+xx = load(fullfile(lapSimRoot, 'Sim Data', 'endurance_racing_line.mat'));
 xx = xx.endurance_racing_line;
 %% Section 9: Optimize Endurance Racing Line
 % The pre-loaded racing line should work for most applications; however,
@@ -830,7 +846,7 @@ disp('Plotting Vehicle Trajectory')
 [laptime time_elapsed velocity acceleration lateral_accel gear_counter path_length weights distance] = lap_information(xx);
 %% Section 12: Load Autocross Track Coordinates
 disp('Loading Autocross Track Coordinates')
-data = readScaledTrackCoordinates('Autocross_Coordinates_2.xlsx');
+data = readScaledTrackCoordinates(fullfile(lapSimRoot, 'Sim Data', 'Autocross_Coordinates_2.xlsx'));
 outside = data(:,2:3);
 inside = data(:,4:5);
 t = [1:length(outside)];
@@ -864,7 +880,7 @@ end
 %save('path_boundaries.mat','path_boundaries');
 %% Section 13: Load Autocross Racing Line
 disp('Loading Autocross Racing Line')
-xx = load('autocross_racing_line.mat');
+xx = load(fullfile(lapSimRoot, 'Sim Data', 'autocross_racing_line.mat'));
 xx = xx.autocross_racing_line;
 %% Section 14: Optimize Autocross Racing Line
 % Same applies here, optimizing the line is optional but if you want,
@@ -1048,6 +1064,10 @@ aeroTargetResults = table(string(aeroTag),CL_target,CD_target,CoP_target, ...
     "Accel_Score","Skidpad_Score","Autocross_Score","Endurance_Score","Total_Points", ...
     "Skidpad_Time","Accel_Time","Autocross_Time","Endurance_Lap_Time"]);
 aeroTargetResults.CL_over_CD = CL_target ./ max(CD_target, eps);
+aeroTargetResults.ResolutionPreset = string(T27_resolutionPreset);
+aeroTargetResults.VelocityStep_ft_s = T27_velocityStep;
+aeroTargetResults.RadiiStep_ft = T27_radiiStep;
+aeroTargetResults.LateralStep_ft_s = T27_lateralStep;
 disp(aeroTargetResults)
 
 enduranceTelemetry = buildValidationTelemetry("Endurance", time_elapsed, distance, velocity, acceleration, lateral_accel, gear_counter);
@@ -1061,12 +1081,12 @@ validationSummary = table(string(aeroTag), CL_target, CD_target, CoP_target, ...
     "Endurance_Max_Speed","Autocross_Max_Speed","Max_AX","Min_AX","Max_Abs_AY"]);
 
 if T27_WRITE_OUTPUTS
-    writetable(aeroTargetResults,'aero_target_results.csv','WriteMode','append');
+    writetable(aeroTargetResults, fullfile(T27_TEST_RESULTS_FOLDER, 'aero_target_results.csv'), 'WriteMode', 'append');
 end
 if T27_EXPORT_VALIDATION
     safeAeroTag = regexprep(char(string(aeroTag)), '[^A-Za-z0-9_-]', '_');
-    writetable(validationTelemetry, sprintf('T27_validation_trace_%s.csv', safeAeroTag));
-    writetable(validationSummary, sprintf('T27_validation_summary_%s.csv', safeAeroTag));
+    writetable(validationTelemetry, fullfile(T27_TEST_RESULTS_FOLDER, sprintf('T27_validation_trace_%s.csv', safeAeroTag)));
+    writetable(validationSummary, fullfile(T27_TEST_RESULTS_FOLDER, sprintf('T27_validation_summary_%s.csv', safeAeroTag)));
 end
 %% Section 18: Generate Load Cases
 disp('Generating Load Cases')

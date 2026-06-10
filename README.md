@@ -5,7 +5,7 @@ This repository contains the CUFSAE T27 MATLAB lap simulation workflow used to s
 The most important entry point is:
 
 ```text
-Lap Sim March 2026/Run_T27_AeroSweep_MultithreadedExcel.m
+Lap Sim March 2026/Aero/Run_T27_AeroSweep_MultithreadedExcel.m
 ```
 
 That runner sweeps combinations of:
@@ -21,33 +21,33 @@ It then runs the lap sim, ranks the results, filters unrealistic aero targets, a
 ```text
 CUFSAEAeroLapSim/
 ├── README.md
+├── PROJECT_TODOS.md
 └── Lap Sim March 2026/
-    ├── Lap_Sim_constantAero_T27V4.m
-    ├── Run_T27_AeroSweep_MultithreadedExcel.m
-    ├── Run_T27_AeroSweep.m
-    ├── Run_T27_AeroSweep_FastExcel.m
-    ├── aeroMapfn.m
-    ├── evalLongitudinalTireLimit.m
-    ├── lat_solve.m
-    ├── lat_objective.m
-    ├── cAlpha_nonlcon.m
-    ├── lap_time.m
-    ├── lap_time_sprint.m
-    ├── readScaledTrackCoordinates.m
-    ├── buildValidationTelemetry.m
-    ├── T27_LapSim_Aero_Target_Engineering_Report.md
-    ├── T27_LapSim_Aero_Target_Engineering_Report.docx
-    ├── T27_LapSim_Presentation_Notes.md
-    ├── T27_AeroSweep_Multithreaded_Results.xlsx
-    ├── T27_AeroSweep_Multithreaded_Results.mat
-    ├── Autocross_Coordinates_2.xlsx
-    ├── Endurance_Coordinates_1.xlsx
-    ├── tire model .mat files
-    ├── track/racing-line .mat files
-    └── supporting MATLAB utilities
+    ├── setupLapSimPaths.m
+    ├── Aero/
+    │   ├── Lap_Sim_constantAero_T27V4.m
+    │   ├── Lap_Sim_fminconSp26.m
+    │   ├── Run_T27_AeroSweep_MultithreadedExcel.m
+    │   ├── aeroMapfn.m
+    │   └── aero sweep/helper files
+    ├── Powertrain/
+    │   ├── Lap_Sim_powertrain.m
+    │   ├── Powertrainlapsim.m
+    │   └── calc_shiftpoints.m
+    ├── Suspension/
+    │   └── load-transfer and weight-distribution sweep files
+    ├── Sim Data/
+    │   ├── Autocross_Coordinates_2.xlsx
+    │   ├── Endurance_Coordinates_1.xlsx
+    │   └── track/racing-line/cache .mat files
+    ├── Tire Data/
+    │   └── TTC tire model data and tire utility files
+    ├── Test Results/
+    │   └── generated sweep, validation, and smoke-test outputs
+    └── shared lap-time/path/solver utilities
 ```
 
-The older lap sim files are kept for reference. New aero-target work should usually use `Lap_Sim_constantAero_T27V4.m` through `Run_T27_AeroSweep_MultithreadedExcel.m`.
+The older lap sim files are kept for reference. Current constant-aero target work should usually use `Aero/Lap_Sim_constantAero_T27V4.m` through `Aero/Run_T27_AeroSweep_MultithreadedExcel.m`. Aero-map debugging and ride-height-sensitive aero work should use `Aero/Lap_Sim_fminconSp26.m`.
 
 ## MATLAB Requirements
 
@@ -107,12 +107,14 @@ This reflects current CUFSAE expectations: roughly 400 to 600 N downforce at 15 
 
 ```matlab
 cd('/Users/masonkelly/Documents/GitHub/CUFSAEAeroLapSim/Lap Sim March 2026')
+setupLapSimPaths
 ```
 
 On Windows, use the equivalent local path, for example:
 
 ```matlab
 cd('C:\Users\YourName\Documents\GitHub\CUFSAEAeroLapSim\Lap Sim March 2026')
+setupLapSimPaths
 ```
 
 3. Run the multithreaded sweep:
@@ -124,21 +126,22 @@ Run_T27_AeroSweep_MultithreadedExcel
 4. Open the generated workbook:
 
 ```text
-T27_AeroSweep_Multithreaded_Results.xlsx
+Lap Sim March 2026/Test Results/T27_AeroSweep_Multithreaded_Results.xlsx
 ```
 
 The default runner uses the Parallel Computing Toolbox if available. If MATLAB cannot start a parallel pool, it falls back to serial execution.
 
 ## Quick Start: Run One Aero Case
 
-For a single case, open MATLAB in the lap sim folder and run:
+For a single case, open MATLAB in the lap sim folder, add the reorganized folders to the path, and run:
 
 ```matlab
+setupLapSimPaths
 CL_target = 0.045;
 CD_target = 0.020;
 CoP_target = 0.475;
 T27_PLOT_RESULTS = true;
-run('Lap_Sim_constantAero_T27V4.m')
+run(fullfile('Aero','Lap_Sim_constantAero_T27V4.m'))
 ```
 
 The main output is `aeroTargetResults` in the MATLAB workspace. It contains event scores, event times, total points, and the aero target that was used.
@@ -198,22 +201,39 @@ T27_minFeasibleLiftToDrag = 2.0
 T27_maxFeasibleLiftToDrag = 2.4
 ```
 
-### Change Fast Mode Resolution
+### Choose Resolution Preset
 
-The fast sweep coarsens the GGV generation so larger sweeps finish sooner:
+Use named resolution presets instead of manually editing step sizes every run:
 
 ```matlab
-T27_FAST_MODE = true;
-T27_velocityStep = 2;    % ft/s, original accurate value is 1
-T27_radiiStep = 10;      % ft, original accurate value is 5
-T27_lateralStep = 0.25;  % ft/s, original accurate value is 0.10
+T27_resolutionPreset = "Medium";  % "High", "Medium", "Low", or "Custom"
 Run_T27_AeroSweep_MultithreadedExcel
 ```
 
-For a slower but more accurate full-resolution run:
+Preset meanings:
+
+| Preset | Use Case | Velocity Step | Radius Step | Lateral Search Step |
+|---|---|---:|---:|---:|
+| `High` | final/check run, original accurate grid | 1 ft/s | 5 ft | 0.10 ft/s |
+| `Medium` | default aero sweep | 2 ft/s | 10 ft | 0.25 ft/s |
+| `Low` | quick screening/debugging | 3 ft/s | 15 ft | 0.50 ft/s |
+| `Custom` | use manually supplied values | user set | user set | user set |
+
+To show an interactive MATLAB picker before the sweep starts:
 
 ```matlab
-T27_FAST_MODE = false;
+T27_SHOW_RESOLUTION_PICKER = true;
+Run_T27_AeroSweep_MultithreadedExcel
+```
+
+For a custom resolution:
+
+```matlab
+T27_resolutionPreset = "Custom";
+T27_FAST_MODE = true;
+T27_velocityStep = 2;
+T27_radiiStep = 10;
+T27_lateralStep = 0.25;
 Run_T27_AeroSweep_MultithreadedExcel
 ```
 
@@ -312,16 +332,29 @@ fnCoP = @(~,~) CoP_target;
 
 That means ride height is computed and logged, but it does not change aero performance. The current model does not include ride-height sensitivity, diffuser stall, pitch sensitivity, yaw sensitivity, steering sensitivity, or aero balance migration with ride height.
 
+## Sideslip Diagnostics And Guardrail
+
+The sideslip/beta debugging work now belongs to the aero-map lap sim, `Aero/Lap_Sim_fminconSp26.m`, because that is the version where ride height changes can alter `CL`, `CD`, and CoP. The constant-aero V4 script keeps the resolution presets but does not reject lateral points based on beta saturation.
+
+The aero-map solve uses chassis sideslip angle, `Beta`, as one of the `fmincon` variables. The current diagnostic guardrail records when the optimizer rides the configured beta limit:
+
+- `T27_betaLimitDeg` sets the beta bound, default `10` deg.
+- `T27_betaLimitToleranceDeg` sets the near-limit tolerance, default `0.25` deg.
+- `T27_REJECT_SIDESLIP_LIMITED = true` treats beta-limit saturation as a failed lateral search point so the aero-map envelope stops before exploiting the bound.
+
+`Lap_Sim_fminconSp26.m` now creates `latResults_out` with beta limit margin, solver exit flag, and normalized residuals. It also creates `aeroMapSideslipSummary` with max sideslip, beta-limit hit counts, rejected step count, and the first radius/speed where the limit is reached.
+
 ## Validation Workflow
 
 The sim can create validation-style telemetry tables for comparison against real logged data. In a one-off run, enable validation export:
 
 ```matlab
 T27_EXPORT_VALIDATION = true;
+setupLapSimPaths
 CL_target = 0.045;
 CD_target = 0.020;
 CoP_target = 0.475;
-run('Lap_Sim_constantAero_T27V4.m')
+run(fullfile('Aero','Lap_Sim_constantAero_T27V4.m'))
 ```
 
 This can write files like:
@@ -374,7 +407,7 @@ These assumptions are acceptable for comparing first-pass aero targets, but fina
 The current workflow was optimized for faster sweeps in several ways:
 
 - `parfor` runs independent aero cases at the same time.
-- Fast mode coarsens velocity, radius, and lateral-search resolution.
+- Named resolution presets choose high, medium, low, or custom sweep resolution.
 - Only the top fast cases need to be rerun accurately.
 - Plotting and per-worker CSV output are disabled during sweeps.
 - Constant aero uses cheap function handles instead of constant scattered interpolants.
@@ -409,15 +442,12 @@ Run_T27_AeroSweep_MultithreadedExcel
 Try:
 
 ```matlab
-T27_FAST_MODE = true;
-T27_velocityStep = 3;
-T27_radiiStep = 15;
-T27_lateralStep = 0.5;
+T27_resolutionPreset = "Low";
 T27_RERUN_TOP_ACCURATE = false;
 Run_T27_AeroSweep_MultithreadedExcel
 ```
 
-Then restore finer settings for final results.
+Then restore `Medium` or `High` for final results.
 
 ### Results look physically unrealistic
 
@@ -441,11 +471,12 @@ The repository ignores local smoke-test outputs and temporary files such as:
 
 - `.DS_Store`
 - Office lock files
-- `CODEX_T27_*.mat`
-- `CODEX_T27_*.xlsx`
+- `CODEX_T27_*.mat` / `CODEX_T27_*.xlsx`
+- `Test Results/CODEX_T27_*.mat` / `Test Results/CODEX_T27_*.xlsx`
 - generated validation CSV files
 - one-off `aero_target_results.csv`
 - one-off `logged_data.csv`
+- local generated files under `Lap Sim March 2026/Test Results/`
 
 Keep durable scripts, reports, and intentional result workbooks in version control. Keep local smoke-test output out of commits unless there is a specific reason to preserve it.
 
@@ -454,17 +485,18 @@ Keep durable scripts, reports, and intentional result workbooks in version contr
 For users running the project:
 
 1. `README.md`
-2. `Lap Sim March 2026/Run_T27_AeroSweep_MultithreadedExcel.m`
+2. `Lap Sim March 2026/Aero/Run_T27_AeroSweep_MultithreadedExcel.m`
 3. `Lap Sim March 2026/T27_LapSim_Presentation_Notes.md`
 4. `Lap Sim March 2026/T27_LapSim_Aero_Target_Engineering_Report.md`
 
 For users changing the model:
 
-1. `Lap Sim March 2026/Lap_Sim_constantAero_T27V4.m`
-2. `Lap Sim March 2026/aeroMapfn.m`
-3. `Lap Sim March 2026/lat_solve.m`
-4. `Lap Sim March 2026/cAlpha_nonlcon.m`
-5. `Lap Sim March 2026/evalLongitudinalTireLimit.m`
+1. `Lap Sim March 2026/Aero/Lap_Sim_constantAero_T27V4.m`
+2. `Lap Sim March 2026/Aero/Lap_Sim_fminconSp26.m`
+3. `Lap Sim March 2026/Aero/aeroMapfn.m`
+4. `Lap Sim March 2026/lat_solve.m`
+5. `Lap Sim March 2026/cAlpha_nonlcon.m`
+6. `Lap Sim March 2026/Aero/evalLongitudinalTireLimit.m`
 
 ## Suggested Design Review Position
 

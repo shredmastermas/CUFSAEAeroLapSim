@@ -4,11 +4,10 @@
 % cases at the same time with parfor, then exports a multi-sheet Excel file.
 %
 % HOW TO USE:
-% 1) Put this file in the same folder as Lap_Sim_constantAero_T27V4.m and all
-%    lap sim dependency files.
+% 1) From the Lap Sim March 2026 folder, run setupLapSimPaths.
 % 2) Run this file in MATLAB:
 %       Run_T27_AeroSweep_MultithreadedExcel
-% 3) Open T27_AeroSweep_Multithreaded_Results.xlsx.
+% 3) Open the generated workbook in the Test Results folder.
 %
 % IMPORTANT GPU NOTE:
 % This lap sim is mostly fmincon, spline interpolation, tire-model calls,
@@ -19,10 +18,23 @@
 % the GPU in the normal way.
 
 if ~exist('T27_KEEP_WORKSPACE','var') || ~T27_KEEP_WORKSPACE
-    clear; clc;
+    clearvars -except T27_*
+    clc;
 end
 
+thisFolder = fileparts(mfilename('fullpath'));
+if isempty(thisFolder); thisFolder = pwd; end
+lapSimRoot = fileparts(thisFolder);
+if ~isfolder(fullfile(lapSimRoot, 'Aero')); lapSimRoot = thisFolder; end
+addpath(genpath(lapSimRoot));
+if ~exist('T27_TEST_RESULTS_FOLDER','var') || isempty(T27_TEST_RESULTS_FOLDER)
+    T27_TEST_RESULTS_FOLDER = fullfile(lapSimRoot, 'Test Results');
+end
+if ~isfolder(T27_TEST_RESULTS_FOLDER); mkdir(T27_TEST_RESULTS_FOLDER); end
+
 %% 1) User settings
+if ~exist('T27_resolutionPreset','var') || isempty(T27_resolutionPreset); T27_resolutionPreset = "Medium"; end
+if ~exist('T27_SHOW_RESOLUTION_PICKER','var') || isempty(T27_SHOW_RESOLUTION_PICKER); T27_SHOW_RESOLUTION_PICKER = false; end
 if ~exist('T27_FAST_MODE','var') || isempty(T27_FAST_MODE); T27_FAST_MODE = true; end
 if ~exist('T27_PLOT_RESULTS','var') || isempty(T27_PLOT_RESULTS); T27_PLOT_RESULTS = false; end
 if ~exist('T27_EXPORT_VALIDATION','var') || isempty(T27_EXPORT_VALIDATION); T27_EXPORT_VALIDATION = false; end
@@ -37,10 +49,14 @@ if ~exist('T27_USE_GPU','var') || isempty(T27_USE_GPU); T27_USE_GPU = false; end
 % Example: T27_NUM_WORKERS = 6;
 if ~exist('T27_NUM_WORKERS','var'); T27_NUM_WORKERS = []; end
 
-% Fast mode resolution. Larger values = faster but less accurate.
-if ~exist('T27_velocityStep','var') || isempty(T27_velocityStep); T27_velocityStep = 2; end    % original = 1 ft/s
-if ~exist('T27_radiiStep','var') || isempty(T27_radiiStep); T27_radiiStep = 10; end            % original = 5 ft
-if ~exist('T27_lateralStep','var') || isempty(T27_lateralStep); T27_lateralStep = 0.25; end    % original = 0.10 ft/s cornering search step
+% Resolution presets: High = original accurate grid, Medium = default sweep,
+% Low = quick screening, Custom = use the manually supplied step sizes below.
+if ~exist('T27_velocityStep','var') || isempty(T27_velocityStep); T27_velocityStep = 2; end
+if ~exist('T27_radiiStep','var') || isempty(T27_radiiStep); T27_radiiStep = 10; end
+if ~exist('T27_lateralStep','var') || isempty(T27_lateralStep); T27_lateralStep = 0.25; end
+[T27_FAST_MODE, T27_velocityStep, T27_radiiStep, T27_lateralStep, T27_resolutionPreset] = ...
+    resolveT27ResolutionPreset(T27_resolutionPreset, T27_FAST_MODE, T27_velocityStep, ...
+    T27_radiiStep, T27_lateralStep, T27_SHOW_RESOLUTION_PICKER);
 if ~exist('T27_targetSpeedsMph','var') || isempty(T27_targetSpeedsMph); T27_targetSpeedsMph = [35 45 60]; end
 
 % Feasibility caps keep the workbook from treating impossible aero as a design target.
@@ -77,17 +93,17 @@ if ~exist('T27_topN_accurate','var') || isempty(T27_topN_accurate); T27_topN_acc
 if ~exist('T27_outputXlsx','var') || isempty(T27_outputXlsx); T27_outputXlsx = 'T27_AeroSweep_Multithreaded_Results.xlsx'; end
 if ~exist('T27_outputMat','var') || isempty(T27_outputMat); T27_outputMat = 'T27_AeroSweep_Multithreaded_Results.mat'; end
 if ~exist('T27_failedCsv','var') || isempty(T27_failedCsv); T27_failedCsv = 'T27_AeroSweep_Multithreaded_failed_runs.csv'; end
+T27_outputXlsx = resolveOutputFile(T27_outputXlsx, T27_TEST_RESULTS_FOLDER);
+T27_outputMat = resolveOutputFile(T27_outputMat, T27_TEST_RESULTS_FOLDER);
+T27_failedCsv = resolveOutputFile(T27_failedCsv, T27_TEST_RESULTS_FOLDER);
 
 if isfile(T27_outputXlsx); delete(T27_outputXlsx); end
 if isfile(T27_failedCsv); delete(T27_failedCsv); end
 
-thisFolder = fileparts(mfilename('fullpath'));
-if isempty(thisFolder); thisFolder = pwd; end
 coreFile = fullfile(thisFolder, 'Lap_Sim_constantAero_T27V4.m');
 if ~isfile(coreFile)
     error('Could not find Lap_Sim_constantAero_T27V4.m in: %s', thisFolder);
 end
-addpath(thisFolder);
 
 %% 2) Build sweep combinations
 [CLg, CDg, CoPg] = ndgrid(T27_CL_list, T27_CD_list, T27_CoP_list);
@@ -97,8 +113,8 @@ T27_combos = unique(T27_combos, 'rows', 'stable');
 T27_nCombos = size(T27_combos, 1);
 
 fprintf('\nT27 parallel aero sweep starting: %d combinations.\n', T27_nCombos);
-fprintf('Fast mode: %d | velocity step %g ft/s | radius step %g ft | lateral step %g ft/s\n', ...
-    T27_FAST_MODE, T27_velocityStep, T27_radiiStep, T27_lateralStep);
+fprintf('Resolution preset: %s | Fast mode: %d | velocity step %g ft/s | radius step %g ft | lateral step %g ft/s\n', ...
+    char(T27_resolutionPreset), T27_FAST_MODE, T27_velocityStep, T27_radiiStep, T27_lateralStep);
 
 %% 3) Start parallel pool if available
 T27_PARALLEL_ACTIVE = false;
@@ -137,13 +153,13 @@ if T27_PARALLEL_ACTIVE
     parfor T27_i = 1:T27_nCombos
         [fastRows{T27_i}, fastErrors{T27_i}] = runOneAeroCase(coreFile, thisFolder, ...
             T27_combos(T27_i, :), T27_i, T27_nCombos, "Fast", true, false, ...
-            T27_velocityStep, T27_radiiStep, T27_lateralStep, T27_USE_GPU);
+            T27_velocityStep, T27_radiiStep, T27_lateralStep, T27_USE_GPU, T27_resolutionPreset);
     end
 else
     for T27_i = 1:T27_nCombos
         [fastRows{T27_i}, fastErrors{T27_i}] = runOneAeroCase(coreFile, thisFolder, ...
             T27_combos(T27_i, :), T27_i, T27_nCombos, "Fast", true, false, ...
-            T27_velocityStep, T27_radiiStep, T27_lateralStep, T27_USE_GPU);
+            T27_velocityStep, T27_radiiStep, T27_lateralStep, T27_USE_GPU, T27_resolutionPreset);
         fprintf('Completed fast run %d/%d.\n', T27_i, T27_nCombos);
     end
 end
@@ -210,13 +226,13 @@ if T27_RERUN_TOP_ACCURATE
         parfor T27_j = 1:T27_topN_accurate
             [accurateRows{T27_j}, accurateErrors{T27_j}] = runOneAeroCase(coreFile, thisFolder, ...
                 T27_accurateCombos(T27_j, :), T27_j, T27_topN_accurate, "AccurateRerun", false, false, ...
-                1, 5, 0.10, T27_USE_GPU);
+                1, 5, 0.10, T27_USE_GPU, "High");
         end
     else
         for T27_j = 1:T27_topN_accurate
             [accurateRows{T27_j}, accurateErrors{T27_j}] = runOneAeroCase(coreFile, thisFolder, ...
                 T27_accurateCombos(T27_j, :), T27_j, T27_topN_accurate, "AccurateRerun", false, false, ...
-                1, 5, 0.10, T27_USE_GPU);
+                1, 5, 0.10, T27_USE_GPU, "High");
             fprintf('Completed accurate rerun %d/%d.\n', T27_j, T27_topN_accurate);
         end
     end
@@ -315,13 +331,23 @@ end
 fprintf('\nOpen this Excel workbook: %s\n', T27_outputXlsx);
 
 %% Local helper functions
-function [row, errRow] = runOneAeroCase(coreFile, runFolder, combo, runIndex, totalRuns, runMode, fastMode, plotResults, velocityStep, radiiStep, lateralStep, useGpu)
+function outputFile = resolveOutputFile(outputFile, defaultFolder)
+    outputFile = char(outputFile);
+    [folderPart, ~, ~] = fileparts(outputFile);
+    if isempty(folderPart)
+        outputFile = fullfile(defaultFolder, outputFile);
+    end
+end
+
+function [row, errRow] = runOneAeroCase(coreFile, runFolder, combo, runIndex, totalRuns, runMode, fastMode, plotResults, velocityStep, radiiStep, lateralStep, useGpu, resolutionPreset)
     row = table();
     errRow = table();
     oldFolder = pwd;
     try
         cd(runFolder);
-        addpath(runFolder);
+        lapSimRoot = fileparts(runFolder);
+        if ~isfolder(fullfile(lapSimRoot, 'Aero')); lapSimRoot = runFolder; end
+        addpath(genpath(lapSimRoot));
 
         T27_SWEEP_ACTIVE = true; %#ok<NASGU>
         T27_NO_CLEAR = true; %#ok<NASGU>
@@ -334,7 +360,10 @@ function [row, errRow] = runOneAeroCase(coreFile, runFolder, combo, runIndex, to
         T27_radiiStep = radiiStep; %#ok<NASGU>
         T27_lateralStep = lateralStep; %#ok<NASGU>
         T27_USE_GPU = useGpu; %#ok<NASGU>
+        T27_resolutionPreset = resolutionPreset; %#ok<NASGU>
+        T27_SHOW_RESOLUTION_PICKER = false; %#ok<NASGU>
         T27_WORKER_ID = runIndex; %#ok<NASGU>
+        T27_TEST_RESULTS_FOLDER = fullfile(lapSimRoot, 'Test Results'); %#ok<NASGU>
 
         CL_target  = combo(1); %#ok<NASGU>
         CD_target  = combo(2); %#ok<NASGU>
