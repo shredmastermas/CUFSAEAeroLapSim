@@ -46,13 +46,14 @@ if ~exist('T27_targetSpeedsMph','var') || isempty(T27_targetSpeedsMph); T27_targ
 % Feasibility caps keep the workbook from treating impossible aero as a design target.
 % Current defaults reflect expected CUFSAE aero capability at about 15 m/s / 35 mph.
 if ~exist('T27_feasibilityRefSpeedMph','var') || isempty(T27_feasibilityRefSpeedMph); T27_feasibilityRefSpeedMph = 35; end
-if ~exist('T27_minFeasibleDownforceAtRef_lbf','var'); T27_minFeasibleDownforceAtRef_lbf = 90; end
-if ~exist('T27_maxFeasibleDownforceAtRef_lbf','var'); T27_maxFeasibleDownforceAtRef_lbf = 135; end
-if ~exist('T27_targetFeasibleLiftToDrag','var'); T27_targetFeasibleLiftToDrag = 2.2; end
-if ~exist('T27_feasibleLiftToDragTolerance','var'); T27_feasibleLiftToDragTolerance = 0.2; end
-if ~exist('T27_minFeasibleLiftToDrag','var'); T27_minFeasibleLiftToDrag = T27_targetFeasibleLiftToDrag - T27_feasibleLiftToDragTolerance; end
-if ~exist('T27_maxFeasibleLiftToDrag','var'); T27_maxFeasibleLiftToDrag = T27_targetFeasibleLiftToDrag + T27_feasibleLiftToDragTolerance; end
-if ~exist('T27_minFeasibleDragAtRef_lbf','var'); T27_minFeasibleDragAtRef_lbf = []; end
+if ~exist('T27_minFeasibleDownforceAtRef_lbf','var') || isempty(T27_minFeasibleDownforceAtRef_lbf); T27_minFeasibleDownforceAtRef_lbf = 90; end
+if ~exist('T27_maxFeasibleDownforceAtRef_lbf','var') || isempty(T27_maxFeasibleDownforceAtRef_lbf); T27_maxFeasibleDownforceAtRef_lbf = 135; end
+if ~exist('T27_targetFeasibleLiftToDrag','var') || isempty(T27_targetFeasibleLiftToDrag); T27_targetFeasibleLiftToDrag = 2.2; end
+if ~exist('T27_feasibleLiftToDragTolerance','var') || isempty(T27_feasibleLiftToDragTolerance); T27_feasibleLiftToDragTolerance = 0.2; end
+if ~exist('T27_minFeasibleLiftToDrag','var') || isempty(T27_minFeasibleLiftToDrag); T27_minFeasibleLiftToDrag = T27_targetFeasibleLiftToDrag - T27_feasibleLiftToDragTolerance; end
+if ~exist('T27_maxFeasibleLiftToDrag','var') || isempty(T27_maxFeasibleLiftToDrag); T27_maxFeasibleLiftToDrag = T27_targetFeasibleLiftToDrag + T27_feasibleLiftToDragTolerance; end
+if ~exist('T27_minFeasibleDragAtRef_lbf','var') || isempty(T27_minFeasibleDragAtRef_lbf); T27_minFeasibleDragAtRef_lbf = 40; end
+if ~exist('T27_maxFeasibleDragAtRef_lbf','var') || isempty(T27_maxFeasibleDragAtRef_lbf); T27_maxFeasibleDragAtRef_lbf = 65; end
 
 % Coarse aero grid. Add/remove values here. Defaults focus on the realistic
 % 90-135 lbf downforce and roughly L/D 2.2 target range at 35 mph.
@@ -160,7 +161,8 @@ T27_resultsAll = addPostMetrics(T27_resultsAll, T27_baselineTotal, T27_baselineC
 T27_resultsAll = addAeroForceColumns(T27_resultsAll, T27_targetSpeedsMph);
 T27_resultsAll = addFeasibilityColumns(T27_resultsAll, T27_feasibilityRefSpeedMph, ...
     T27_minFeasibleDownforceAtRef_lbf, T27_maxFeasibleDownforceAtRef_lbf, ...
-    T27_minFeasibleLiftToDrag, T27_maxFeasibleLiftToDrag, T27_minFeasibleDragAtRef_lbf);
+    T27_minFeasibleLiftToDrag, T27_maxFeasibleLiftToDrag, ...
+    T27_minFeasibleDragAtRef_lbf, T27_maxFeasibleDragAtRef_lbf);
 
 %% 5) Build fast ranked tables
 T27_rankedTotal        = sortrows(T27_resultsAll, 'Total_Points', 'descend');
@@ -226,7 +228,8 @@ if T27_RERUN_TOP_ACCURATE
         T27_accurateResults = addAeroForceColumns(T27_accurateResults, T27_targetSpeedsMph);
         T27_accurateResults = addFeasibilityColumns(T27_accurateResults, T27_feasibilityRefSpeedMph, ...
             T27_minFeasibleDownforceAtRef_lbf, T27_maxFeasibleDownforceAtRef_lbf, ...
-            T27_minFeasibleLiftToDrag, T27_maxFeasibleLiftToDrag, T27_minFeasibleDragAtRef_lbf);
+            T27_minFeasibleLiftToDrag, T27_maxFeasibleLiftToDrag, ...
+            T27_minFeasibleDragAtRef_lbf, T27_maxFeasibleDragAtRef_lbf);
         T27_accurateRanked = sortrows(T27_accurateResults, 'Total_Points', 'descend');
     end
 end
@@ -295,9 +298,10 @@ fprintf('\nMultithreaded aero sweep complete.\n');
 fprintf('Best overall setup across all result modes:\n');
 disp(T27_bestOverall);
 if ~isempty(T27_bestFeasible)
-    fprintf('Best feasible setup using %g mph, DF %g-%g lbf, L/D %g-%g:\n', ...
+    fprintf('Best feasible setup using %g mph, DF %g-%g lbf, drag %g-%g lbf, L/D %g-%g:\n', ...
         T27_feasibilityRefSpeedMph, T27_minFeasibleDownforceAtRef_lbf, ...
-        T27_maxFeasibleDownforceAtRef_lbf, T27_minFeasibleLiftToDrag, T27_maxFeasibleLiftToDrag);
+        T27_maxFeasibleDownforceAtRef_lbf, T27_minFeasibleDragAtRef_lbf, ...
+        T27_maxFeasibleDragAtRef_lbf, T27_minFeasibleLiftToDrag, T27_maxFeasibleLiftToDrag);
     disp(T27_bestFeasible);
 else
     fprintf('No feasible setup met the configured downforce/drag limits. Check feasibility settings.\n');
@@ -405,7 +409,7 @@ function T = addAeroForceColumns(T, targetSpeedsMph)
     end
 end
 
-function T = addFeasibilityColumns(T, refSpeedMph, minDownforceRefLbf, maxDownforceRefLbf, minLiftToDrag, maxLiftToDrag, minDragRefLbf)
+function T = addFeasibilityColumns(T, refSpeedMph, minDownforceRefLbf, maxDownforceRefLbf, minLiftToDrag, maxLiftToDrag, minDragRefLbf, maxDragRefLbf)
     refSpeedFps = refSpeedMph * 5280 / 3600;
     nRows = height(T);
 
@@ -455,19 +459,29 @@ function T = addFeasibilityColumns(T, refSpeedMph, minDownforceRefLbf, maxDownfo
         T.MinFeasibleDragAtRef_lbf = repmat(minDragRefLbf, nRows, 1);
     end
 
+    if isempty(maxDragRefLbf)
+        dragCeiling = inf;
+        T.MaxFeasibleDragAtRef_lbf = nan(nRows,1);
+    else
+        dragCeiling = maxDragRefLbf;
+        T.MaxFeasibleDragAtRef_lbf = repmat(maxDragRefLbf, nRows, 1);
+    end
+
     belowDf = T.DF_Total_FeasRef_lbf < dfMin;
     exceedsDf = T.DF_Total_FeasRef_lbf > dfMax;
     belowLd = T.LiftToDrag_FeasRef < ldMin;
     exceedsLd = T.LiftToDrag_FeasRef > ldMax;
     belowDrag = T.Drag_Total_FeasRef_lbf < dragFloor;
-    T.IsFeasibleAeroTarget = ~(belowDf | exceedsDf | belowLd | exceedsLd | belowDrag);
+    exceedsDrag = T.Drag_Total_FeasRef_lbf > dragCeiling;
+    T.IsFeasibleAeroTarget = ~(belowDf | exceedsDf | belowLd | exceedsLd | belowDrag | exceedsDrag);
 
     notes = strings(nRows,1);
     notes(belowDf) = notes(belowDf) + "DF below target window; ";
     notes(exceedsDf) = notes(exceedsDf) + "DF exceeds cap; ";
     notes(belowLd) = notes(belowLd) + "L/D below target window; ";
     notes(exceedsLd) = notes(exceedsLd) + "L/D exceeds target window; ";
-    notes(belowDrag) = notes(belowDrag) + "drag below floor; ";
+    notes(belowDrag) = notes(belowDrag) + "drag below target window; ";
+    notes(exceedsDrag) = notes(exceedsDrag) + "drag exceeds target window; ";
     notes(notes == "") = "OK";
     T.FeasibilityNotes = notes;
 end

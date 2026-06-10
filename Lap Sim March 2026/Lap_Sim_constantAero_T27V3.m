@@ -191,9 +191,9 @@ disp('Loading Constant Aero Targets')
 % CoP_target is front aero distribution as a decimal:
 %       0.45 = 45% of downforce on front axle, 55% rear
 % -------------------------------------------------------------------------
-CL_target  = 0.080;   % lbf/(ft/s)^2, increase for more downforce
+CL_target  = 0.045;   % lbf/(ft/s)^2, increase for more downforce
 CD_target  = 0.020;   % lbf/(ft/s)^2, increase for more drag
-CoP_target = 0.450;   % front aero distribution, 0 to 1
+CoP_target = 0.475;   % front aero distribution, 0 to 1
 
 % Optional label so logged results are easier to compare between runs
 aeroTag = sprintf('CL_%0.3f_CD_%0.3f_CoP_%0.3f',CL_target,CD_target,CoP_target);

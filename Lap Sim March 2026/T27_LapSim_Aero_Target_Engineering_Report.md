@@ -21,7 +21,7 @@ The lap sim evaluates how different values of `CL`, `CD`, and front aero balance
 
 The unconstrained mathematical winner from the previous sweep was approximately `CL=0.160`, `CD=0.010`, and `CoP=0.475` to `0.525`. At 35 mph, that predicts about 422 lbf of downforce and L/D of 16. This is not a realistic design target for our current aero capability. It should be treated as a model-limit result, not as an aero goal.
 
-The updated engineering recommendation is to use the lap sim with feasibility caps based on expected CUFSAE aero capability. At about 15 m/s, which is approximately 35 mph, a reasonable expected total downforce range is 90 to 135 lbf, which is approximately 400 to 600 N. Drag should be slightly below half of downforce, roughly 40 to 65 lbf at that speed. The previous year's aero efficiency was about L/D = 2.2, so the sweep should not be allowed to select much higher efficiency unless there is CFD or test evidence to support it.
+The updated engineering recommendation is to use the lap sim with feasibility caps based on expected CUFSAE aero capability. At about 15 m/s, which is approximately 35 mph, a reasonable expected total downforce range is 90 to 135 lbf, which is approximately 400 to 600 N. Drag should be slightly below half of downforce, roughly 40 to 65 lbf at that speed. The previous year's aero efficiency was about L/D = 2.2, so the sweep should not be allowed to select much higher efficiency unless there is CFD or test evidence to support it. The MATLAB runner now enforces downforce, drag, and L/D as separate feasibility gates so the best feasible result cannot pass only by exploiting one metric.
 
 The current feasibility defaults are:
 
@@ -30,6 +30,7 @@ The current feasibility defaults are:
 | Reference speed | 35 mph | Close to the 15 m/s aero reference speed commonly used by the team. |
 | Min total downforce at reference speed | 90 lbf | Lower end of expected realistic aero load. |
 | Max total downforce at reference speed | 135 lbf | Upper end of expected realistic aero load. |
+| Total drag target at reference speed | 40 to 65 lbf | Keeps drag near the expected slightly-below-half-of-downforce range and blocks unrealistically low-drag aero. |
 | Lift-to-drag target window | 2.0 to 2.4 | Centers the feasible sweep around last year's L/D about 2.2 and rejects unrealistic values such as L/D 16. |
 
 A defensible nominal starting target is:
@@ -474,7 +475,7 @@ The sim now generates telemetry-style outputs that can be compared to real data.
 2. Refine the 90-135 lbf downforce window, 40-65 lbf drag window, and L/D 2.0-2.4 feasibility window with measured or CFD-backed values.
 3. Run a larger accurate rerun around the feasible region:
    - `CL = 0.040` to `0.080`
-   - `CD = 0.015` to `0.030`, filtered to keep L/D near 2.2
+   - `CD = 0.015` to `0.030`, filtered to keep 35 mph drag near 40-65 lbf and L/D near 2.2
    - `CoP = 0.450` to `0.525`
 4. Create component CFD concepts that can hit the target load split.
 5. Check if the physical aero package can be made adjustable from roughly 47.5 percent to 52.5 percent front aero balance.
@@ -528,7 +529,7 @@ where:
 | Baseline/current estimate | 0.080 | 0.020 | 0.450 | Starting comparison point, but predicts about 211 lbf at 35 mph and may exceed realistic downforce. |
 | Unconstrained mathematical winner | 0.160 | 0.010 | 0.475 to 0.525 | Highest points, but predicts about 422 lbf at 35 mph and L/D up to 16. Not realistic without proof. |
 | Recommended feasible nominal target | 0.045 | 0.020 | 0.475 | About 119 lbf downforce, 53 lbf drag, and L/D 2.25 at 35 mph. |
-| Feasible sweep range | 0.034 to 0.051 | about 0.016 to 0.030, filtered by L/D | 0.450 to 0.525 | Based on 90-135 lbf downforce, 40-65 lbf drag, and L/D around 2.2 at 35 mph. |
+| Feasible sweep range | 0.034 to 0.051 | about 0.015 to 0.025, filtered by drag and L/D | 0.450 to 0.525 | Based on 90-135 lbf downforce, 40-65 lbf drag, and L/D around 2.2 at 35 mph. |
 
 ## Appendix C: Short Verbal Defense
 
