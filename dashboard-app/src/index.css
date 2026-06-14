@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Monochrome data sheet: plain near-white surface, ink data, Clemson orange
+   and purple reserved for meaning (current/selected and secondary series). */
+body {
+  font-family: "Roboto", system-ui, sans-serif;
+  background-color: #f5f5f5;
+  color: #141414;
+}
+
+/* All numerals line up — the data is the interface. */
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: #f56600;
+  color: #ffffff;
+}

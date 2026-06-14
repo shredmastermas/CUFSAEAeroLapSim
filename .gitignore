@@ -9,6 +9,20 @@ Lap Sim March 2026/CODEX_T27_*.xlsx
 Lap Sim March 2026/Test Results/CODEX_T27_*.mat
 Lap Sim March 2026/Test Results/CODEX_T27_*.xlsx
 
+# Python toolchain (pylapsim)
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Handover transfer artifacts
+*-handover.zip
+*-handoff.zip
+
+# Bulk pylapsim outputs (curated workbook/report/figures are committed)
+Lap Sim March 2026/Test Results/python/traces/
+Lap Sim March 2026/Test Results/python/scratch/
+
 # Generated validation/export files from one-off local runs
 Lap Sim March 2026/T27_validation_*.csv
 Lap Sim March 2026/aero_target_results.csv
@@ -16,3 +30,9 @@ Lap Sim March 2026/logged_data.csv
 Lap Sim March 2026/Test Results/T27_validation_*.csv
 Lap Sim March 2026/Test Results/aero_target_results.csv
 Lap Sim March 2026/Test Results/logged_data.csv
+
+# Dashboard host app
+dashboard-app/node_modules/
+dashboard-app/dist/
+nohup.out
+dashboard-app/screenshots/
