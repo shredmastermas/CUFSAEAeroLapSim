@@ -1,13 +1,97 @@
 # CUFSAE T27 Aero Lap Simulation
 
-> **New workflow note:** this repo now includes the original MATLAB lap sim,
-> a Python port in `pylapsim/`, and a static dashboard in `dashboard-app/`.
-> Start with `HANDOVER.md` for the full map, or `docs/RUNNING.md` for the
-> shortest run instructions.
+This repository contains the CUFSAE T27 aero lap simulation workflow used to study aerodynamic targets for a mock FSAE Michigan-style competition. The project now has three usable paths:
 
-This repository contains the CUFSAE T27 MATLAB lap simulation workflow used to study aerodynamic targets for a mock FSAE Michigan-style competition. The current workflow focuses on choosing defensible first-pass aero goals for total downforce, drag, and front/rear aero balance instead of copying previous-year `CL`, `CD`, and CoP values without a scoring reason.
+- `dashboard-app/`: the browser dashboard for reviewing sweep results and aero targets
+- `pylapsim/`: the Python lap sim port used for fast sweeps, validation, and dashboard data generation
+- `Lap Sim March 2026/`: the original MATLAB lap sim, input data, and engineering reports
 
-The most important entry point is:
+The current workflow focuses on choosing defensible first-pass aero goals for total downforce, drag, and front/rear aero balance instead of copying previous-year `CL`, `CD`, and CoP values without a scoring reason.
+
+## Quick Start: View The Dashboard
+
+If you only want to explore the latest committed aero study, open the prebuilt single-file dashboard:
+
+```bash
+open dashboard-app/dist-single/index.html
+```
+
+On Windows, double-click this file instead:
+
+```text
+dashboard-app/dist-single/index.html
+```
+
+To run it as a local website with Vite:
+
+```bash
+cd dashboard-app
+npm install
+npm run dev
+```
+
+Then open the local URL that Vite prints, usually `http://localhost:5273/`. On Windows PowerShell, use `npm.cmd install` and `npm.cmd run dev` if script execution is disabled.
+
+To build and preview the production site:
+
+```bash
+cd dashboard-app
+npm install
+npm run build
+npm run preview
+```
+
+## Quick Start: Run The Python Lap Sim
+
+Use Python when you want to run new sweeps, validate the port against the MATLAB reference data, or regenerate dashboard inputs. Python 3.12 is recommended.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m pylapsim validate
+pytest
+```
+
+On Windows PowerShell:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python -m pylapsim validate
+pytest
+```
+
+Run the current buildable-envelope sweep:
+
+```bash
+python scripts/run_clamped_sweep.py
+```
+
+Run a single aero setup and export its lap trace:
+
+```bash
+python -m pylapsim run --cl 0.040 --cd 0.020 --cop 0.450 --corrected --out-dir trace_out
+```
+
+Run a grid sweep directly from the CLI:
+
+```bash
+python -m pylapsim sweep --preset Medium --corrected --out "my_sweep.xlsx"
+```
+
+The main Python outputs are written under:
+
+```text
+Lap Sim March 2026/Test Results/python/
+```
+
+After generating new sweep data, see `docs/RUNNING.md` for the dashboard data rebuild steps.
+
+## Quick Start: Run The MATLAB Aero Sweep
+
+The main MATLAB entry point is:
 
 ```text
 Lap Sim March 2026/Aero/Run_T27_AeroSweep_MultithreadedExcel.m
@@ -27,6 +111,12 @@ It then runs the lap sim, ranks the results, filters unrealistic aero targets, a
 CUFSAEAeroLapSim/
 ├── README.md
 ├── PROJECT_TODOS.md
+├── pylapsim/                 # Python lap sim engine
+├── dashboard-app/            # Vite/React dashboard host
+├── docs/                     # running, validation, and technical notes
+├── scripts/                  # sweep and dashboard-data helper scripts
+├── tests/                    # pytest validation suite
+├── data/airfoils/            # airfoil reference data
 └── Lap Sim March 2026/
     ├── setupLapSimPaths.m
     ├── Aero/
