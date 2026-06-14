@@ -14,6 +14,11 @@ This is the working checklist for the CUFSAE T27 aero lap sim. The goal is to ke
 
 ## Model Trust And Debugging
 
+- [x] Root-cause CG-height insensitivity: longitudinal load transfer was effectively
+      disabled by a spurious `/24` (and a double application in braking) in
+      `Lap_Sim_constantAero_T27V4.m` — fixed on branch `pylapsim`; see
+      `handover/FINDINGS.md` F1. CG height now has real longitudinal sensitivity.
+      (MATLAB fix is parity-checked via the Python port, not yet run in MATLAB.)
 - [ ] Create a CG height sensitivity study.
 - [ ] Sweep CG height over a realistic range.
 - [ ] Plot total points vs CG height.
@@ -65,6 +70,19 @@ This is the working checklist for the CUFSAE T27 aero lap sim. The goal is to ke
 - [ ] Generate 60 mph downforce vs drag colored by total points.
 - [ ] Export top 10 feasible and top 10 overall tables as presentation-ready sheets.
 
+## Aero Target Follow-ups (pylapsim, 2026-06-12)
+
+- [ ] Vehicle-dynamics review of forward CoP: the corrected-physics optimum sits at
+      CoP 0.575–0.650, but the lap sim has **no braking-stability model** — verify
+      rear-axle margin under braking before adopting (HANDOVER.md §7 / docs/PHYSICS_DELTA.md).
+- [ ] Supply BSFC (g/kWh) + fuel density + competition efficiency anchors so
+      Efficiency_Score can be populated (formula already implemented from
+      FSAE Rules 2026 §D.13.4 — pylapsim/scoring.py).
+- [ ] Supply a sourced wing-package mass estimate to replace the unsourced
+      k_mass scenario bracket (docs/PHYSICS_DELTA.md).
+- [ ] Replace the placeholder feasibility window with CFD/measured data — the
+      unconstrained optimum is worth ~+17 pts and is blocked only by the window.
+
 ## Aero Map And Component Work
 
 - [ ] Compare the static target model against the T26 aero map.
@@ -72,6 +90,22 @@ This is the working checklist for the CUFSAE T27 aero lap sim. The goal is to ke
 - [ ] Compare effective downforce, drag, L/D, and CoP by speed.
 - [ ] Keep the lap sim focused on total targets before splitting front wing, rear wing, and undertray targets.
 - [ ] Use CFD to design component concepts that hit the chosen total targets.
+
+## Data Integrity
+
+- [ ] FX tire model range: corrected-physics rear-wheel loads exceed the CSAPS fit's
+      FZ range (−250 lbf) under combined transfer + downforce; values beyond are cubic
+      extrapolations. Acquire/fit TTC FX data covering −250 to −350 lbf
+      (see docs/PHYSICS_DELTA.md "Model-limit caveat").
+
+- [ ] **Autocross oracle mismatch (found by the pylapsim port, 2026-06-12):** the
+      committed sweep workbook + validation trace embed a 2334.1 ft autocross path,
+      but the committed `Autocross_Coordinates_2.xlsx` + `autocross_racing_line.mat`
+      produce a 2727.95 ft path (confirmed by MATLAB's own committed
+      `latestpgResults.mat` / `latestLLTDResults.mat` workspaces to 1e-10).
+      Either regenerate the oracle in MATLAB from the committed inputs, or commit
+      the coordinate file that produced the 2334 ft path. Full evidence:
+      `docs/VALIDATION.md` §3.
 
 ## Validation Planning
 

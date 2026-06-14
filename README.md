@@ -1,5 +1,10 @@
 # CUFSAE T27 Aero Lap Simulation
 
+> **New workflow note:** this repo now includes the original MATLAB lap sim,
+> a Python port in `pylapsim/`, and a static dashboard in `dashboard-app/`.
+> Start with `HANDOVER.md` for the full map, or `docs/RUNNING.md` for the
+> shortest run instructions.
+
 This repository contains the CUFSAE T27 MATLAB lap simulation workflow used to study aerodynamic targets for a mock FSAE Michigan-style competition. The current workflow focuses on choosing defensible first-pass aero goals for total downforce, drag, and front/rear aero balance instead of copying previous-year `CL`, `CD`, and CoP values without a scoring reason.
 
 The most important entry point is:

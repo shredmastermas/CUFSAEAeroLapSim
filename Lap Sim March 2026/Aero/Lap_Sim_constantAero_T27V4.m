@@ -330,8 +330,10 @@ for  i = 1:1:length(velocity) % for each velocity
         dx = ((l*12)/2)*tan(pitch); % assumes pitch center is perfectly centered on car and no pitch center migration
         % dxf = dxf0+dx;
         % dxr = dxr0-dx;
-        wf = WF-Ax*cg*WS/l/24;
-        wr = WR+Ax*cg*WS/l/24;
+        % Axle transfer dW = Ax*W*cg/l (full-axle here; halved to per-wheel with DF below).
+        % Was WF-Ax*cg*WS/l/24 (= 1/48 of physical with WS=W/2). see handover/FINDINGS.md F1
+        wf = WF-Ax*W*cg/l;
+        wr = WR+Ax*W*cg/l;
         dxf = dx-(dx*antiLift);
         dxr = -dx+(dx*antiSquat);
         [DFf,DFr,RHf,RHr,Cl,Cd,CoP,dxf,dxr] = aeroMapfn(fnCl,fnCoP,fnCd,RHfi,RHri,V,kRF,kRR,dxf,dxr);
@@ -483,6 +485,10 @@ for turn = 1:1:length(radii)
             obj = @(x) lat_objective(x, V, a, b, l, WDF, R, IA_staticf, IA_gainf, IA_staticr, IA_gainr, WF, WR, twf, twr, cg, W, LLTD, rg_f, rg_r, casterf, casterr, deltar, sf_y, A, grip, Cd, T_lock, KPIf, KPIr,fnCl,fnCoP,fnCd,RHfi,RHri,kRF,kRR,dxf,dxr,x_prev);
             [x, Jval, exitflag] = fmincon(obj, x_prev, [], [], [], [], lb, ub, nonlcon, options);
             fval = lat_solve(x, V, a, b, l, WDF, R, IA_staticf, IA_gainf, IA_staticr, IA_gainr, WF, WR, twf, twr, cg, W, LLTD, rg_f, rg_r, casterf, casterr, deltar, sf_y, A, grip, Cd, T_lock, KPIf, KPIr,fnCl,fnCoP,fnCd,RHfi,RHri,kRF,kRR,dxf,dxr);
+            % KNOWN ISSUE (handover/FINDINGS.md F7, no behavior change here):
+            % this step-back solve's results are recorded below even when
+            % exitflag < 1 (solver failed). Rows from failed solves should be
+            % flagged in latResults so downstream fits can exclude them.
             % fprintf('\nFy Residual: %0.6f', res(1))
             % fprintf('\nMz Residual: %0.6f', res(2))
 
@@ -673,10 +679,11 @@ for  i = 1:1:length(velocity)
         dxf = dx-(dx*antiDive);
         dxr = -dx+(dx*antiRise);
         [DFf,DFr,RHf,RHr,Cl,Cd,CoP,dxf,dxr] = aeroMapfn(fnCl,fnCoP,fnCd,RHfi,RHri,V,kRF,kRR,dxf,dxr);
-        wf = ((WF+DFf)/2)+(Ax*cg*WS/l/24);
-        wr = ((WR+DFr)/2)-(Ax*cg*WS/l/24);
-        wf = wf+Ax*cg*WS/l/24;
-        wr = wr-Ax*cg*WS/l/24;
+        % Per-wheel transfer Ax*cg*WS/l = Ax*W*cg/(2l) with WS=W/2, applied once;
+        % matches the pre-loop seed at line ~654. Was /24 and applied twice
+        % (= 1/24 of physical total). see handover/FINDINGS.md F1
+        wf = ((WF+DFf)/2)+(Ax*cg*WS/l);
+        wr = ((WR+DFr)/2)-(Ax*cg*WS/l);
         IA_f = -l*12*sin(pitch)/2*IA_gainf + IA_0f;% - KPIf*(1-cos(deltaf)) + casterf*sin(deltaf);
         IA_r = l*12*sin(pitch)/2*IA_gainr + IA_0r;% - KPIr*(1-cos(deltar)) + casterf*sin(deltar);
         IA_f = 0;

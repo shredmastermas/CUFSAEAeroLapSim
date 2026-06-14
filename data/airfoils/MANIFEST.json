@@ -1,0 +1,70 @@
+{
+  "retrieved_at": "2026-06-12T19:23:51.917766+00:00",
+  "notes": {
+    "coordinates": "UIUC Airfoil Coordinates Database (M. Selig), Selig .dat format",
+    "polars": "airfoiltools.com XFOIL-computed polars (Ncrit=9, Mach 0), Reynolds in filename; computed data published by airfoiltools.com, not wind-tunnel measurements",
+    "reynolds_rationale": "FSAE wing Re at 35-60 mph with 0.25-0.5 m chords spans ~2e5-6e5"
+  },
+  "files": {
+    "s1223.dat": {
+      "url": "https://m-selig.ae.illinois.edu/ads/coord/s1223.dat",
+      "sha256": "f2e06d165d6244d2fc1c7dde9e46c46c4d42a70b183620ea02fd693fbfa5cf53"
+    },
+    "e423.dat": {
+      "url": "https://m-selig.ae.illinois.edu/ads/coord/e423.dat",
+      "sha256": "3fc3876a02bc9112089f80603c80bddfeb71885b276977fe69985e207279421c"
+    },
+    "ch10sm.dat": {
+      "url": "https://m-selig.ae.illinois.edu/ads/coord/ch10sm.dat",
+      "sha256": "382fed5043fcde42471596334ad6f4526a69e836757d4ddd6b977cb7d7d63a01"
+    },
+    "s1210.dat": {
+      "url": "https://m-selig.ae.illinois.edu/ads/coord/s1210.dat",
+      "sha256": "44f9c005b78f0fdc0c6dd6b68488b9d8ccf8ffe984c99f42ac68928dc1ed674b"
+    },
+    "fx74cl5140.dat": {
+      "url": "https://m-selig.ae.illinois.edu/ads/coord/fx74cl5140.dat",
+      "sha256": "e6c3715dea5d0594645e3524ce8c6675d4ebb4603e86222424de490bb429c37a"
+    },
+    "xf-s1223-il-200000.csv": {
+      "url": "http://airfoiltools.com/polar/csv?polar=xf-s1223-il-200000",
+      "sha256": "368e9224633e775c75cfaa1fba57ec21ec59fceda135110496b990761e8a7626"
+    },
+    "xf-s1223-il-500000.csv": {
+      "url": "http://airfoiltools.com/polar/csv?polar=xf-s1223-il-500000",
+      "sha256": "fb27c88d50a0f5acbbd630cadd81ff203cdcfa7717dc8553f7c07d921e32118f"
+    },
+    "xf-e423-il-200000.csv": {
+      "url": "http://airfoiltools.com/polar/csv?polar=xf-e423-il-200000",
+      "sha256": "eba03e337617439cd2a16770ead312e85dcca7b0a75a410341aa51ec895fad36"
+    },
+    "xf-e423-il-500000.csv": {
+      "url": "http://airfoiltools.com/polar/csv?polar=xf-e423-il-500000",
+      "sha256": "163a77a42952c2f0e18393ae3561f7757c0f6e3235ee3c395da48dc3e7a8bf7a"
+    },
+    "xf-ch10sm-il-200000.csv": {
+      "url": "http://airfoiltools.com/polar/csv?polar=xf-ch10sm-il-200000",
+      "sha256": "337bdbb346bc50421ee873db3efa85c7a5c46b25a0e661e7d5e9361b91ec9c15"
+    },
+    "xf-ch10sm-il-500000.csv": {
+      "url": "http://airfoiltools.com/polar/csv?polar=xf-ch10sm-il-500000",
+      "sha256": "82ae11460a67720edebad99117a14ee35dc1f331b49cd66013c8394280f2f9cc"
+    },
+    "xf-s1210-il-200000.csv": {
+      "url": "http://airfoiltools.com/polar/csv?polar=xf-s1210-il-200000",
+      "sha256": "05e4d6a948a7c3b65da49906685c1c02ca298d06ddf20dd95312333952b480ca"
+    },
+    "xf-s1210-il-500000.csv": {
+      "url": "http://airfoiltools.com/polar/csv?polar=xf-s1210-il-500000",
+      "sha256": "f58be16b43e551106e7fa4fa9a7bcd85abb9c67511d3c5583f17b1e75942e767"
+    },
+    "xf-fx74cl5140-il-200000.csv": {
+      "url": "http://airfoiltools.com/polar/csv?polar=xf-fx74cl5140-il-200000",
+      "sha256": "4fb84b860423a2884a17e2c5ba1f04b453f9d12efd6f86aa1cda4a914f5efbd6"
+    },
+    "xf-fx74cl5140-il-500000.csv": {
+      "url": "http://airfoiltools.com/polar/csv?polar=xf-fx74cl5140-il-500000",
+      "sha256": "ef03536ae7752b5428be27b084dea8110eda935b5f26ed3d54e6f07e3b0686ca"
+    }
+  }
+}

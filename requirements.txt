@@ -1,0 +1,9 @@
+# Python deps for pylapsim (the lap-sim engine) + the data-build scripts.
+# Install:  python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt
+# Tested with the versions in the right column; the unpinned names are what's required.
+numpy        # 2.4.x   — arrays / vectorized physics
+pandas       # 3.0.x   — read/write the .xlsx coordinate + sweep workbooks
+scipy        # 1.17.x  — PCHIP track smoothing, .mat racing lines, interpolation
+csaps        # 1.x     — cubic smoothing spline (track geometry)
+openpyxl     # 3.x     — the .xlsx read/write engine pandas uses here
+pytest       # test runner (optional, for `pytest`)
