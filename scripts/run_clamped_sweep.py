@@ -4,10 +4,11 @@ Replaces the unconstrained sweep after the 2026-06-13 review:
   - parameterized by (CL, L/D, CoP); CD is DERIVED = CL / L/D, so every cell is
     inside the buildable lift-to-drag band (no more CD 0.01 / L/D 9 fantasy, no
     high-CL tire-extrapolation NaNs).
-  - CL clamped to <= 0.055 (CL 0.08+ ⇒ ~1500 lbf, unmountable).
-  - L/D swept 2.0–3.0 (buildable band 2.2–3.0; 2.0–2.2 kept only so the
-    points-vs-L/D curve shows the shelf); 3.0 is the ceiling.
-  - CoP rearward-leaning (forward ⇒ oversteer per Mason).
+  - CL clamped to <= 0.065 (CL 0.08+ ⇒ ~1500 lbf, unmountable).
+  - L/D swept 2.0–2.75 so the sim never evaluates the old unrealistic
+    high-efficiency cells.
+  - CoP clamped to 0.40–0.50; forward of 0.50 is treated as too unstable for
+    target selection in this model.
   - NO fabricated baseline prepended (the old BASELINE 0.080/0.020/0.450 "T26"
     was a seed number, not a real car). A real reference cell — CL 0.045 @ L/D 2.2,
     Mason's best-achieved ratio — is passed to finalize for the delta columns.
@@ -28,9 +29,9 @@ from pylapsim.config import HIGH, AeroTarget, SimConfig  # noqa: E402
 from pylapsim.io_contract import write_meta_json, write_results_workbook  # noqa: E402
 from pylapsim.sweep import finalize_results, run_sweep  # noqa: E402
 
-CL = np.round(np.arange(0.035, 0.05501, 0.0025), 6)   # 9  (0.035..0.055)
-LD = np.round(np.arange(2.00, 3.0001, 0.05), 6)        # 21 (2.00..3.00)
-COP = np.round(np.arange(0.40, 0.5501, 0.025), 6)      # 7  (0.40..0.55, rearward)
+CL = np.round(np.linspace(0.035, 0.065, 16), 6)   # 16 (0.035..0.065, 0.002 step)
+LD = np.round(np.linspace(2.00, 2.75, 19), 6)     # 19 (2.00..2.75, ~0.0417 step)
+COP = np.round(np.arange(0.40, 0.5001, 0.025), 6) # 5  (0.40..0.50)
 
 # Mason's best-achieved build (CL ~0.045, L/D ~2.19) — a REAL anchor for deltas.
 REF = AeroTarget(0.045, round(0.045 / 2.2, 6), 0.45)
@@ -43,8 +44,8 @@ def clamped_combos():
     for cop in COP:
         for ld in LD:
             for cl in CL:
-                cd = round(float(cl) / float(ld), 6)
-                key = (round(float(cl), 6), cd, round(float(cop), 6))
+                cd = float(cl) / float(ld)
+                key = (round(float(cl), 6), round(cd, 10), round(float(cop), 6))
                 if key not in seen:
                     seen.add(key)
                     out.append(AeroTarget(float(cl), cd, float(cop)))
@@ -54,7 +55,7 @@ def clamped_combos():
 def main() -> int:
     combos = clamped_combos()
     print(f"clamped grid CL{len(CL)} x LD{len(LD)} x CoP{len(COP)} = {len(combos)} cells "
-          f"(CD derived = CL/LD; L/D 2.0-3.0; no fake baseline)", flush=True)
+          f"(CD derived = CL/LD; L/D 2.0-2.75; no fake baseline)", flush=True)
     cfg = SimConfig(legacy_compat=False)
     t0 = time.time()
     df = run_sweep(base_cfg=cfg, combos=combos, fast_resolution=HIGH,

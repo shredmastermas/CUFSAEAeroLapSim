@@ -19,7 +19,8 @@ import pandas as pd
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 XLSX = os.path.join(ROOT, "Lap Sim March 2026/Test Results/python/"
                           "T27_AeroSweep_manufacturable.xlsx")
-TRACE = "/tmp/trace_corr/T27_validation_trace_CL_0_040_CD_0_020_CoP_0_450.csv"
+TRACE = os.path.join(ROOT, "Lap Sim March 2026/Test Results/"
+                           "T27_validation_trace_CL_0_040_CD_0_020_CoP_0_450.csv")
 JSX = os.path.join(ROOT, "handover/dashboard/t27-aero-dashboard.jsx")
 
 WORKBOOK_NAME = "T27_AeroSweep_manufacturable.xlsx"
@@ -104,9 +105,10 @@ def main():
     consts = {
         "META": {"workbook": WORKBOOK_NAME, "sha": git_sha(), "trace": TRACE_NAME,
                  "traceRun": TRACE_RUN, "feas": {"refMph": 35.0, "dfMin": DF_FLOOR},
-                 # manufacturable envelope (Mason 2026-06-13): buildable L/D band +
+                 # manufacturable envelope (Mason 2026-06-13, revised bounds): realistic L/D band +
                  # a REAL reference cell (best-achieved ~CL0.045/L2.2) — no fake T26.
-                 "ld": {"band": [2.2, 3.0]}, "refMph": 35.0, "topMph": 90.0,
+                 "ld": {"band": [2.0, 2.75], "excludedAbove": 2.75},
+                 "refMph": 35.0, "topMph": 60.0, "maxLoadMph": 90.0,
                  "ref": {"cl": 0.045, "cd": round(0.045 / 2.2, 6), "cop": 0.45}},
         "SWEEP0": build_sweep(df),
         "TRACE0": build_trace(TRACE),
@@ -128,14 +130,14 @@ def main():
     dropped = len(df[df.RunMode != "AccurateRerun"]) - sum(s["mode"] == "F" for s in sweep) \
         if "RunMode" in df else 0
     best = max((s for s in sweep if not isT26(s)), key=lambda s: s["total"])
-    best_ld3 = max((s for s in sweep if not isT26(s) and s["ld"] <= 3.0),
-                   key=lambda s: s["total"], default=None)
+    best_buildable = max((s for s in sweep if not isT26(s) and s["ld"] <= 2.75),
+                         key=lambda s: s["total"], default=None)
     print(f"spliced META / SWEEP0({len(sweep)}) / TRACE0 / PAIRS({len(consts['PAIRS'])})")
     print(f"dropped unsolved (NaN-total) fast cells: {dropped}")
     print(f"feasible(floor {DF_FLOOR}): {sum(s['feas'] for s in sweep)}/{len(sweep)}")
-    print(f"best target (any L/D): {best}")
-    if best_ld3:
-        print(f"best buildable (L/D<=3): {best_ld3}")
+    print(f"best simulated row inside active envelope: {best}")
+    if best_buildable:
+        print(f"best buildable (L/D<=2.75): {best_buildable}")
 
 
 if __name__ == "__main__":

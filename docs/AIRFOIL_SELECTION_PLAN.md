@@ -56,7 +56,7 @@ For a sweep cell `(CL, L/D, CoP)`:
 - Front `CL·A = CoP · total`; rear `= (1−CoP) · total` (axle-force split — same
   approximation the lap sim makes; `suggest_wings` already does this).
 - Convert to downforce in lbf at any speed with `DF = CL·A · ½ρ V²` (the dashboard
-  already shows this @35 and @90 mph).
+  shows this primarily @35 and @60 mph, with @90 mph kept as a max-load/worst-case check).
 
 So the requirement side is done. The work is the **synthesis** side: produce a
 geometry whose predicted `(CL·A, CD·A)` meets the requirement within the rules box.
@@ -130,7 +130,7 @@ The sweep wants `CL·A`/`CD·A` of the *installed* wing, so:
 This is what makes it more than a calculator:
 
 1. Pick a sweep target `(CL, L/D, CoP)` (e.g. the best buildable cell,
-   CL0.055 / L/D3.0 / CoP0.55).
+   CL0.065 / L/D2.75 / CoP0.50).
 2. **Search** element count, chords, deflections, gaps to hit each wing's `CL·A`
    at **min CD·A**, subject to: rules box (chord/height/overlap limits), stall
    margin, and *manufacturing* limits (min slot gap you can actually mold, max
@@ -150,7 +150,7 @@ scores the buildable thing — no fantasy CL.
 
 A new tab consistent with the existing SVG/krugify style:
 - Pick a sweep cell (or type CL/L/D/CoP) → shows the front & rear requirement
-  (`CL·A`, downforce lbf @35/90).
+  (`CL·A`, downforce lbf/N @35/60, with @90 as the max-load check).
 - Candidate stacks as **cross-section SVGs** (main + flaps + slots), each with
   predicted CL / CD / L/D, stall margin, and a hit/miss vs target.
 - Sliders for gap / deflection / chord-ratio with live recompute (panel method is

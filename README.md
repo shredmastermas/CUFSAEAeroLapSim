@@ -162,6 +162,7 @@ In this lap sim, `CL_target` and `CD_target` are force coefficients in the sim's
 ```text
 Downforce [lbf] = CL_target * V^2
 Drag [lbf]      = CD_target * V^2
+Force [N]       = Force [lbf] * 4.448
 ```
 
 where `V` is speed in ft/s.
@@ -175,8 +176,8 @@ Example at 35 mph:
 CL_target = 0.045
 CD_target = 0.020
 
-Downforce = 0.045 * 51.333^2 = about 119 lbf
-Drag      = 0.020 * 51.333^2 = about 53 lbf
+Downforce = 0.045 * 51.333^2 = about 119 lbf / 528 N
+Drag      = 0.020 * 51.333^2 = about 53 lbf / 235 N
 L/D       = 119 / 53 = about 2.25
 ```
 
@@ -193,7 +194,7 @@ Current defaults at the reference speed of 35 mph, about 15 m/s:
 | Lift-to-drag ratio | 2.0 to 2.4 |
 | Target L/D center | 2.2 |
 
-This reflects current CUFSAE expectations: roughly 400 to 600 N downforce at 15 m/s and drag slightly below half of downforce. The previous year's efficiency was about L/D = 2.2, so the sweep should not be allowed to choose a much higher efficiency unless CFD or test data supports it.
+This reflects current CUFSAE expectations: roughly 400 to 600 N downforce at 15 m/s and drag slightly below half of downforce. The previous year's efficiency was about L/D = 2.2. The Python dashboard sweep now explores L/D 2.0 to 2.75, with values above 2.75 intentionally excluded until CFD or test data supports them.
 
 ## Quick Start: Run The Multithreaded Aero Sweep
 
@@ -270,9 +271,9 @@ This is useful for debugging or for machines without Parallel Computing Toolbox.
 ### Change The Aero Sweep Grid
 
 ```matlab
-T27_CL_list  = 0.035:0.005:0.055;
-T27_CD_list  = 0.015:0.0025:0.030;
-T27_CoP_list = 0.425:0.025:0.525;
+T27_CL_list  = 0.035:0.002:0.065;
+T27_CD_list  = 0.015:0.0025:0.030;  % direct-CD MATLAB sweep only
+T27_CoP_list = 0.400:0.025:0.500;
 Run_T27_AeroSweep_MultithreadedExcel
 ```
 
